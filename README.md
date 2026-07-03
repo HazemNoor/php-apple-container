@@ -5,7 +5,7 @@ A native-PHP sample stack — **nginx + PHP-FPM + MySQL + phpMyAdmin** — runni
 ## Requirements
 
 - macOS 26+ on Apple silicon
-- [Apple container](https://github.com/apple/container) 1.0+ (`brew install --cask container` or the release installer)
+- [Apple container](https://github.com/apple/container) 1.0+ — install the signed `.pkg` from the [releases page](https://github.com/apple/container/releases)
 - GNU make (ships with the Xcode Command Line Tools)
 
 ## Quick start
