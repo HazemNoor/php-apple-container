@@ -1,4 +1,5 @@
 ENV_FILE ?= .env
+MAKEFLAGS += --no-print-directory
 -include $(ENV_FILE)
 export $(shell test -f $(ENV_FILE) && grep -v '^\#' $(ENV_FILE) | grep -v '^$$' | sed 's/=.*//')
 
@@ -23,7 +24,12 @@ MYSQL_VOLUME := $(MYSQL)-volume
 # Pulls the IP column out of `container ls` for a given container name.
 ip = container ls | awk '$$1 == "$(1)" { sub("/.*", "", $$6); print $$6 }'
 
-.PHONY: help env start stop restart status shell logs check clean
+# Fail with a hint unless container $(1) is running ($(2) = target that starts it)
+require = @container ls | awk '$$1 == "$(1)" { f = 1 } END { exit !f }' \
+	|| { echo "Error: $(1) is not running — run: make $(2) first"; exit 1; }
+
+.PHONY: help env start stop restart status shell logs check clean \
+	env-guard images mysql-up pma-up php-up nginx-up
 .DEFAULT_GOAL := help
 
 help: ## Show this help menu
@@ -35,10 +41,26 @@ env: ## Create .env from .env.example (won't overwrite an existing one)
 		|| (cp .env.example $(ENV_FILE) && echo "Created $(ENV_FILE) from .env.example — adjust values as needed")
 
 start: stop ## Build images and (re)create the whole stack
+	@$(MAKE) env-guard
+	@$(MAKE) images
+	@$(MAKE) mysql-up
+	@$(MAKE) pma-up
+	@$(MAKE) php-up
+	@$(MAKE) nginx-up
+	@echo "→ http://$(APP_DOMAIN)  |  http://$(PMA_DOMAIN)"
+
+# --- start stages: called in order above; each also runs standalone ---------
+# (standalone assumes .env exists and the container isn't already running)
+
+env-guard:
 	@test -f $(ENV_FILE) || { echo "Missing $(ENV_FILE) — run: make env"; exit 1; }
+
+images:
 	@container system start >/dev/null 2>&1 || true
 	container build -t $(PHP_IMG) server/php
 	container build -t $(PMA_IMG) server/phpmyadmin
+
+mysql-up:
 	@container volume create $(MYSQL_VOLUME) >/dev/null 2>&1 || true
 	container run -d --name $(MYSQL) \
 		-v $(MYSQL_VOLUME):/var/lib/mysql \
@@ -48,6 +70,9 @@ start: stop ## Build images and (re)create the whole stack
 		-e MYSQL_PASSWORD=$(DB_PASS) \
 		mysql:9 --default-time-zone=+00:00
 	@printf 'Waiting for MySQL '; until container exec $(MYSQL) mysqladmin ping --protocol=TCP --silent >/dev/null 2>&1; do printf .; sleep 1; done; echo ' up'
+
+pma-up:
+	$(call require,$(MYSQL),mysql-up)
 	container run -d --name $(PMA) \
 		-e PMA_HOST=$$($(call ip,$(MYSQL))) \
 		-e PMA_PORT=3306 \
@@ -60,6 +85,9 @@ start: stop ## Build images and (re)create the whole stack
 		-e PMA_CONTROLPASS=$(DB_PASS) \
 		$(PMA_IMG)
 	@container exec $(PMA) cat /var/www/html/sql/create_tables.sql | container exec -i $(MYSQL) mysql -uroot -p$(DB_PASS) 2>/dev/null || true
+
+php-up:
+	$(call require,$(MYSQL),mysql-up)
 	container run -d --name $(PHP) \
 		-v $(PWD)/public:/var/www/html/public \
 		-v $(PWD)/server/php/aliases.sh:/etc/profile.d/aliases.sh \
@@ -68,6 +96,10 @@ start: stop ## Build images and (re)create the whole stack
 		-e DB_USER=$(DB_USER) \
 		-e DB_PASS=$(DB_PASS) \
 		$(PHP_IMG)
+
+nginx-up:
+	$(call require,$(PHP),php-up)
+	$(call require,$(PMA),pma-up)
 	@mkdir -p server/nginx/conf.d && sed \
 		-e "s/__PHP_IP__/$$($(call ip,$(PHP)))/" \
 		-e "s/__PMA_IP__/$$($(call ip,$(PMA)))/" \
@@ -79,7 +111,7 @@ start: stop ## Build images and (re)create the whole stack
 		-v $(PWD)/server/nginx/conf.d:/etc/nginx/conf.d \
 		-v $(PWD)/public:/var/www/html/public \
 		nginx:1-alpine
-	@echo "→ http://$(APP_DOMAIN)  |  http://$(PMA_DOMAIN)"
+# --- end start stages --------------------------------------------------------
 
 stop: ## Stop and remove all containers (MySQL data survives in the volume)
 	-@for c in $(NGINX) $(PHP) $(PMA) $(MYSQL); do container rm -f $$c >/dev/null 2>&1 && echo "removed $$c"; done; true
