@@ -15,8 +15,11 @@ $pdo->exec('CREATE TABLE IF NOT EXISTS visits (
     visited_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 )');
 
-$pdo->prepare('INSERT INTO visits (user_agent) VALUES (?)')
-    ->execute([substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 255)]);
+// Chrome omnibox prefetch/prerender marks speculative loads with Sec-Purpose
+if (!isset($_SERVER['HTTP_SEC_PURPOSE']) && !isset($_SERVER['HTTP_PURPOSE'])) {
+    $pdo->prepare('INSERT INTO visits (user_agent) VALUES (?)')
+        ->execute([substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 255)]);
+}
 
 $count  = (int) $pdo->query('SELECT COUNT(*) FROM visits')->fetchColumn();
 $recent = $pdo->query('SELECT id, user_agent, visited_at FROM visits ORDER BY id DESC LIMIT 5')->fetchAll();

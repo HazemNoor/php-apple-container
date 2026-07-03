@@ -10,6 +10,14 @@ server {
         try_files $uri =404;
     }
 
+    # Chrome probes /.well-known/appspecific/com.chrome.devtools.json when
+    # DevTools is open; don't let it (or anything under .well-known) hit PHP.
+    location ^~ /.well-known/ {
+        access_log off;
+        log_not_found off;
+        try_files $uri =404;
+    }
+
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }
