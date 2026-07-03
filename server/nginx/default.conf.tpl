@@ -4,6 +4,12 @@ server {
     root /var/www/html/public;
     index index.php;
 
+    location = /favicon.ico {
+        access_log off;
+        log_not_found off;
+        try_files $uri =404;
+    }
+
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }
