@@ -16,7 +16,7 @@ A native-PHP sample stack (nginx + PHP-FPM + MySQL + phpMyAdmin) running on **Ap
 - `make logs` / `make status` — diagnostics
 - `make clean` — also deletes the MySQL volume and built images
 
-Configuration lives in `.env` (gitignored but **required** — the Makefile `include`s it and fails without it). All container/image/volume names derive from `$(APP_NAME)-$(APP_ENV)`.
+Configuration lives in `.env` (gitignored but **required** — generate it with `make env`, which copies `.env.example`). All container/image/volume names derive from `$(APP_NAME)-$(APP_ENV)`.
 
 URLs: `http://$(APP_DOMAIN)` (app) and `http://$(PMA_DOMAIN)` (phpMyAdmin). Any `*.localhost` name resolves to loopback on macOS natively — no /etc/hosts entries needed.
 

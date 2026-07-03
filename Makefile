@@ -1,6 +1,6 @@
 ENV_FILE ?= .env
-include $(ENV_FILE)
-export $(shell grep -v '^\#' $(ENV_FILE) | grep -v '^$$' | sed 's/=.*//')
+-include $(ENV_FILE)
+export $(shell test -f $(ENV_FILE) && grep -v '^\#' $(ENV_FILE) | grep -v '^$$' | sed 's/=.*//')
 
 # ponytail: nginx publishes on 0.0.0.0:80 — macOS allows ports <1024 unprivileged
 # only on the wildcard address, so the bare domain works, but the app is LAN-visible.
@@ -19,14 +19,19 @@ MYSQL_VOLUME := $(MYSQL)-volume
 # Pulls the IP column out of `container ls` for a given container name.
 ip = container ls | awk '$$1 == "$(1)" { sub("/.*", "", $$6); print $$6 }'
 
-.PHONY: help start stop restart status shell logs check clean
+.PHONY: help env start stop restart status shell logs check clean
 .DEFAULT_GOAL := help
 
 help: ## Show this help menu
 	@printf "\n\033[1;33m$(APP_NAME) ($(APP_ENV)) — PHP + nginx + MySQL on Apple container — http://$(APP_DOMAIN)\033[0m\n\n"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-10s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
+env: ## Create .env from .env.example (won't overwrite an existing one)
+	@test -f $(ENV_FILE) && echo "$(ENV_FILE) already exists — not touching it" \
+		|| (cp .env.example $(ENV_FILE) && echo "Created $(ENV_FILE) from .env.example — adjust values as needed")
+
 start: stop ## Build images and (re)create the whole stack
+	@test -f $(ENV_FILE) || { echo "Missing $(ENV_FILE) — run: make env"; exit 1; }
 	@container system start >/dev/null 2>&1 || true
 	container build -t $(PHP_IMG) server/php
 	container build -t $(PMA_IMG) server/phpmyadmin
