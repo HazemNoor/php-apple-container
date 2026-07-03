@@ -32,7 +32,7 @@ URLs: `http://$(APP_DOMAIN)` (app) and `http://$(PMA_DOMAIN)` (phpMyAdmin). Any 
 
 **Changing `APP_NAME` or `APP_ENV` forks the stack**: new container names *and a new empty volume*; the old set becomes orphaned and the old nginx container keeps holding port 80. Run `make stop` before editing those values, then clean up the old volume manually.
 
-**PHP code needs no rebuild** — `public/` is bind-mounted into both fpm and nginx. Dockerfile or `server/php/php.ini` changes need `make start` (rebuild). `server/php/aliases.sh` is bind-mounted too; edits apply on the next login shell.
+**PHP code needs no rebuild** — `public/` is bind-mounted into both fpm and nginx. Containerfile or `server/php/php.ini` changes need `make start` (rebuild). `server/php/aliases.sh` is bind-mounted too; edits apply on the next login shell.
 
 **Xdebug** is trigger-mode (`?XDEBUG_SESSION=1`), port 9003, `client_host=192.168.64.1` — the subnet gateway, i.e. the Mac as seen from inside a container. IDE path mapping: `public/` → `/var/www/html/public`.
 

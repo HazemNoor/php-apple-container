@@ -8,8 +8,10 @@ export $(shell test -f $(ENV_FILE) && grep -v '^\#' $(ENV_FILE) | grep -v '^$$' 
 PREFIX  := $(APP_NAME)-$(APP_ENV)
 
 # Images
-PHP_IMG := $(PREFIX)-php
-PMA_IMG := $(PREFIX)-phpmyadmin
+PHP_IMG   := $(PREFIX)-php
+PMA_IMG   := $(PREFIX)-phpmyadmin
+MYSQL_IMG := $(PREFIX)-mysql
+NGINX_IMG := $(PREFIX)-nginx
 
 # Containers
 NGINX   := $(PREFIX)-nginx
@@ -59,6 +61,8 @@ images:
 	@container system start >/dev/null 2>&1 || true
 	container build -t $(PHP_IMG) server/php
 	container build -t $(PMA_IMG) server/phpmyadmin
+	container build -t $(MYSQL_IMG) server/mysql
+	container build -t $(NGINX_IMG) server/nginx
 
 mysql-up:
 	@container volume create $(MYSQL_VOLUME) >/dev/null 2>&1 || true
@@ -68,7 +72,7 @@ mysql-up:
 		-e MYSQL_DATABASE=$(DB_NAME) \
 		-e MYSQL_USER=$(DB_USER) \
 		-e MYSQL_PASSWORD=$(DB_PASS) \
-		mysql:9 --default-time-zone=+00:00
+		$(MYSQL_IMG)
 	@printf 'Waiting for MySQL '; until container exec $(MYSQL) mysqladmin ping --protocol=TCP --silent >/dev/null 2>&1; do printf .; sleep 1; done; echo ' up'
 
 pma-up:
@@ -110,7 +114,7 @@ nginx-up:
 		-p 80:80 \
 		-v $(PWD)/server/nginx/conf.d:/etc/nginx/conf.d \
 		-v $(PWD)/public:/var/www/html/public \
-		nginx:1-alpine
+		$(NGINX_IMG)
 # --- end start stages --------------------------------------------------------
 
 stop: ## Stop and remove all containers (MySQL data survives in the volume)
@@ -135,3 +139,5 @@ clean: stop ## Stop everything, then delete the MySQL volume and built images
 	-container volume rm $(MYSQL_VOLUME)
 	-container image rm $(PHP_IMG)
 	-container image rm $(PMA_IMG)
+	-container image rm $(MYSQL_IMG)
+	-container image rm $(NGINX_IMG)

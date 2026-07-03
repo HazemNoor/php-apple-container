@@ -1,0 +1,3 @@
+FROM mysql:9
+
+COPY mysql.cnf /etc/mysql/conf.d/mysql.cnf
