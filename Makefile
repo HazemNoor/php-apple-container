@@ -5,14 +5,18 @@ export $(shell test -f $(ENV_FILE) && grep -v '^\#' $(ENV_FILE) | grep -v '^$$' 
 # ponytail: nginx publishes on 0.0.0.0:80 — macOS allows ports <1024 unprivileged
 # only on the wildcard address, so the bare domain works, but the app is LAN-visible.
 PREFIX  := $(APP_NAME)-$(APP_ENV)
+
+# Images
 PHP_IMG := $(PREFIX)-php
 PMA_IMG := $(PREFIX)-phpmyadmin
 
+# Containers
 NGINX   := $(PREFIX)-nginx
 PHP     := $(PREFIX)-php
 PMA     := $(PREFIX)-pma
 MYSQL   := $(PREFIX)-mysql
 
+# Volumes
 MYSQL_VOLUME := $(MYSQL)-volume
 
 # ponytail: Apple container 1.0 has no inter-container DNS — wire IPs at start.
