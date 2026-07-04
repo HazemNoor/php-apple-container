@@ -4,6 +4,7 @@ ENV TZ=UTC
 
 RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS linux-headers \
  && docker-php-ext-install pdo_mysql \
+ && pecl channel-update pecl.php.net \
  && pecl install xdebug timezonedb \
  && docker-php-ext-enable xdebug timezonedb \
  && apk del .build-deps \
