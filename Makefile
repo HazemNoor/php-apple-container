@@ -30,7 +30,7 @@ ip = container ls | awk '$$1 == "$(1)" { sub("/.*", "", $$6); print $$6 }'
 require = @container ls | awk '$$1 == "$(1)" { f = 1 } END { exit !f }' \
 	|| { echo "Error: $(1) is not running — run: make $(2) first"; exit 1; }
 
-.PHONY: help env build start stop restart status shell logs check clean \
+.PHONY: help env build start stop restart status shell logs check clean prune \
 	env-guard images mysql-up pma-up php-up nginx-up
 .DEFAULT_GOAL := help
 
@@ -148,3 +148,13 @@ clean: stop ## Stop everything, then delete the MySQL volume, images, dangling l
 	-container image rm $(NGINX_IMG)
 	-container image prune
 	-container builder delete
+
+prune: ## Nuke ALL Apple container artifacts (every container, image, the volume, builder) and stop the runtime
+	-container stop -a
+	-container delete -a
+	-container builder delete
+	-container volume delete $(MYSQL_VOLUME)
+	-container image delete -a
+	-container system stop
+	rm -rf "$$HOME/Library/Application Support/com.apple.container/snapshots" \
+	       "$$HOME/Library/Application Support/com.apple.container/content"
