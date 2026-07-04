@@ -9,7 +9,8 @@ A native-PHP sample stack (nginx + PHP-FPM + MySQL + phpMyAdmin) running on **Ap
 ## Commands
 
 - `make` — help menu (default target)
-- `make start` — build images and (re)create the whole stack; always recreates containers from scratch
+- `make build` — build (or refresh) all images; run after any Containerfile/ini change
+- `make start` — (re)create the whole stack from existing images (builds them only if missing); always recreates containers from scratch
 - `make stop` — remove all containers (MySQL data survives in the named volume)
 - `make check` — verify both endpoints respond (app + phpMyAdmin); run this after changes
 - `make shell` — login shell in the PHP container (loads `server/php/aliases.sh`)
@@ -32,7 +33,7 @@ URLs: `http://$(APP_DOMAIN)` (app) and `http://$(PMA_DOMAIN)` (phpMyAdmin). Any 
 
 **Changing `APP_NAME` or `APP_ENV` forks the stack**: new container names *and a new empty volume*; the old set becomes orphaned and the old nginx container keeps holding port 80. Run `make stop` before editing those values, then clean up the old volume manually.
 
-**PHP code needs no rebuild** — `public/` is bind-mounted into both fpm and nginx. Containerfile or `server/php/php.ini` changes need `make start` (rebuild). `server/php/aliases.sh` is bind-mounted too; edits apply on the next login shell.
+**PHP code needs no rebuild** — `public/` is bind-mounted into both fpm and nginx. Containerfile or `server/php/php.ini` changes need `make build`. `server/php/aliases.sh` is bind-mounted too; edits apply on the next login shell.
 
 **Xdebug** is trigger-mode (`?XDEBUG_SESSION=1`), port 9003, `client_host=192.168.64.1` — the subnet gateway, i.e. the Mac as seen from inside a container. IDE path mapping: `public/` → `/var/www/html/public`.
 

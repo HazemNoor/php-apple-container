@@ -30,7 +30,7 @@ ip = container ls | awk '$$1 == "$(1)" { sub("/.*", "", $$6); print $$6 }'
 require = @container ls | awk '$$1 == "$(1)" { f = 1 } END { exit !f }' \
 	|| { echo "Error: $(1) is not running — run: make $(2) first"; exit 1; }
 
-.PHONY: help env start stop restart status shell logs check clean \
+.PHONY: help env build start stop restart status shell logs check clean \
 	env-guard images mysql-up pma-up php-up nginx-up
 .DEFAULT_GOAL := help
 
@@ -42,9 +42,13 @@ env: ## Create .env from .env.example (won't overwrite an existing one)
 	@test -f $(ENV_FILE) && echo "$(ENV_FILE) already exists — not touching it" \
 		|| (cp .env.example $(ENV_FILE) && echo "Created $(ENV_FILE) from .env.example — adjust values as needed")
 
-start: stop ## Build images and (re)create the whole stack
+build: ## Build (or refresh) all images — run after any Containerfile/ini change
 	@$(MAKE) env-guard
 	@$(MAKE) images
+
+start: stop ## (Re)create the stack from existing images (auto-builds if missing)
+	@$(MAKE) env-guard
+	@container image inspect $(PHP_IMG) $(PMA_IMG) $(MYSQL_IMG) $(NGINX_IMG) >/dev/null 2>&1 || $(MAKE) images
 	@$(MAKE) mysql-up
 	@$(MAKE) pma-up
 	@$(MAKE) php-up
@@ -63,6 +67,7 @@ images:
 	container build -t $(PMA_IMG) server/phpmyadmin
 	container build -t $(MYSQL_IMG) server/mysql
 	container build -t $(NGINX_IMG) server/nginx
+	@container image prune >/dev/null 2>&1 || true
 
 mysql-up:
 	@container volume create $(MYSQL_VOLUME) >/dev/null 2>&1 || true
@@ -135,9 +140,11 @@ check: ## Verify the app and phpMyAdmin respond
 	curl -fsS http://$(APP_DOMAIN)/ | grep -o 'Visits: [0-9]*'
 	@curl -fsS -o /dev/null -w "phpMyAdmin: HTTP %{http_code}\n" http://$(PMA_DOMAIN)/
 
-clean: stop ## Stop everything, then delete the MySQL volume and built images
+clean: stop ## Stop everything, then delete the MySQL volume, images, dangling layers and the builder VM
 	-container volume rm $(MYSQL_VOLUME)
 	-container image rm $(PHP_IMG)
 	-container image rm $(PMA_IMG)
 	-container image rm $(MYSQL_IMG)
 	-container image rm $(NGINX_IMG)
+	-container image prune
+	-container builder delete

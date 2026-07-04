@@ -12,7 +12,7 @@ A native-PHP sample stack — **nginx + PHP-FPM + MySQL + phpMyAdmin** — runni
 
 ```sh
 make env    # create .env from .env.example
-make start  # build images, create containers, wire everything up
+make start  # create containers and wire everything up (builds images on first run)
 make check  # verify both endpoints respond
 ```
 
@@ -38,7 +38,8 @@ Run bare `make` for the help menu:
 
 | Target    | What it does |
 |-----------|--------------|
-| `start`   | Build images and (re)create the whole stack |
+| `build`   | Build (or refresh) all images — run after a Containerfile/ini change |
+| `start`   | (Re)create the stack from existing images (auto-builds if missing) |
 | `stop`    | Remove all containers (MySQL data survives in the volume) |
 | `restart` | Same as `start` |
 | `status`  | List containers |
@@ -48,7 +49,7 @@ Run bare `make` for the help menu:
 | `env`     | Create `.env` from `.env.example` |
 | `clean`   | Stop everything, delete the MySQL volume and built images |
 
-`start` runs its stages in sequence (`env-guard → images → mysql-up → pma-up → php-up → nginx-up`); each stage is also callable on its own, and guards fail with a hint if a required service isn't running.
+`start` runs its stages in sequence (`env-guard → mysql-up → pma-up → php-up → nginx-up`), building images first only if they're missing; each stage is also callable on its own, and guards fail with a hint if a required service isn't running.
 
 ## Configuration
 
@@ -73,7 +74,8 @@ A VS Code launch config is included (`.vscode/launch.json`): install the **PHP D
 
 - **No inter-container DNS** in Apple container 1.0 — containers only reach each other by IP. `make start` extracts each container's IP and wires it into the next: MySQL's IP goes to PHP/phpMyAdmin as env vars, and nginx's config is *generated* from `server/nginx/default.conf.tpl` with the PHP/phpMyAdmin IPs substituted. Never edit `server/nginx/conf.d/default.conf` — edit the template.
 - **Port 80 without root** — macOS allows unprivileged binds below 1024 only on the wildcard address, so nginx publishes on `0.0.0.0:80`. Consequence: the stack is reachable from your LAN, and phpMyAdmin auto-logs-in as MySQL root. **Playground use only.**
-- **PHP code needs no rebuild** — `public/` is bind-mounted into both PHP-FPM and nginx. Containerfile, `php.ini`, or `mysql.cnf` changes need `make start` to rebuild.
+- **PHP code needs no rebuild** — `public/` is bind-mounted into both PHP-FPM and nginx. Containerfile, `php.ini`, or `mysql.cnf` changes need `make build`.
+- **Reclaiming disk** — Apple container gives every image and container its own unshared rootfs, and the BuildKit builder VM only grows, so the store creeps up over time. `make start` reuses existing images (no per-run rebuild); run `make build` to refresh them, and `make clean` to reclaim everything — images, dangling layers, the builder VM, and the volume.
 
 ## Project layout
 
